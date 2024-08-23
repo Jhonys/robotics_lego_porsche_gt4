@@ -210,7 +210,7 @@ async def main():
         return
 
     # Initialize the first joystick
-    joystick = pygame.joystick.Joystick(1)
+    joystick = pygame.joystick.Joystick(0)
     joystick.init()
     
     print(f"Joystick name: {joystick.get_name()}")
