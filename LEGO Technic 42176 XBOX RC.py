@@ -113,6 +113,51 @@ class TechnicMoveHub:
         await self.send_data(bytearray([0x0d,0x00,0x81,0x36,0x11,0x51,0x00,0x03,0x00, speed&0xFF, angle&0xFF, lights&0xFF,0x00]))
         #await asyncio.sleep(0.1)
 
+def normalize(value):
+    """
+    input -1 to 1
+    return 0 to 1
+    """
+    if value == 0:
+        return 0
+    else:
+        return (-value + 1)/2
+
+def ease_in_expo(x: float) -> float:
+    """ https://easings.net/#easeInExpo """
+    if x == 0:
+        return 0
+    return 2 ** (10 * x - 10)
+
+def ease_in_quart(x: float) -> float:
+    """ https://easings.net/#easeInQuart """
+    return x ** 4
+
+def ease_in_quad(x: float) -> float:
+    """ https://easings.net/#easeInQuad """
+    return x ** 2
+  
+def get_steering_wheel(joystick):
+    # G923 Racing Wheel for PlayStation and PC
+    steering = joystick.get_axis(0) # volante -1 to 0
+    accelerator_pedal = normalize(joystick.get_axis(1)) # acelerador 0 to 1
+    break_pedal = normalize(joystick.get_axis(2)) # freio 0 to 1
+
+    # skip issue to 0.5 with no value
+    # if accelerator_pedal == 0.5 and wheel_updated == False:
+    #     accelerator_pedal = 0
+    # else:
+    #     wheel_updated = True
+    # button 4 = borboleta direita
+    # button 5 = borboleta direita
+
+    # break is priority
+    if break_pedal > 0.1:
+        throttle = -ease_in_quad(break_pedal)
+    else:
+        throttle = ease_in_quad(accelerator_pedal)
+        
+    return round(steering*100), round(throttle*100)
 
 def get_left_joystick(joystick):
     x = round(joystick.get_axis(0)*100)
@@ -148,7 +193,6 @@ def get_left_bumper(joystick):
 def get_right_bumper(joystick):
     return joystick.get_button(5)
 
-
 async def main():
     device_name = "Technic Move"  # Replace with your BLE device's name
     hub = TechnicMoveHub(device_name)
@@ -166,7 +210,7 @@ async def main():
         return
 
     # Initialize the first joystick
-    joystick = pygame.joystick.Joystick(0)
+    joystick = pygame.joystick.Joystick(1)
     joystick.init()
     
     print(f"Joystick name: {joystick.get_name()}")
@@ -187,8 +231,10 @@ async def main():
             pygame.event.pump() # poll joystick
 
             # Print controller inputs
-            throttle = get_right_joystick(joystick)[1]
-            steering = get_left_joystick(joystick)[0]
+            # throttle = get_right_joystick(joystick)[1]
+            # steering = get_left_joystick(joystick)[0]
+
+            steering, throttle = get_steering_wheel(joystick=joystick)
             #steering = get_right_joystick(joystick)[0] # use only one joystick?
         
             if abs(throttle)<3:
