@@ -27,6 +27,7 @@ def detectAndProcessGesture(image):
     
     # Process the image and detect gestures
     results = recognizer.recognize(image_rgb)
+    horizontal = 0 # center
     vertical = 0 # stop
     sound = False # no sound
 
@@ -34,16 +35,20 @@ def detectAndProcessGesture(image):
         top_gesture = results.gestures[0][0]
         if top_gesture:
             gesture = top_gesture.category_name
-            if gesture == "Victory":
+            if gesture == "Pointing_Up":
                 vertical = -1 # forward
-            elif gesture == "Pointing_Up":
+            elif gesture == "Victory":
                 vertical = 1 # backward
+            elif gesture == "Thumb_Down":
+                horizontal = -1 # left
+            elif gesture == "Thumb_Up":
+                horizontal = 1 # right
             elif gesture == "Open_Palm":
                 vertical = 0 # stop
             elif gesture == "ILoveYou":
                 sound = True
 
-    return vertical, sound
+    return horizontal, vertical, sound
 
 async def infoProtocol(session, horizontal, vertical):
     # horizontal = -1 left, 0 center, 1 right
@@ -109,9 +114,7 @@ def getHorizontalPositionHand(image):
 
 async def main():
     cap = cv2.VideoCapture(1)
-    previous_horizontal = None
-    previous_vertical = None
-    previous_sound = None
+    previous_command = None
 
     async with aiohttp.ClientSession() as session:
         while cap.isOpened():
@@ -121,21 +124,29 @@ async def main():
                 continue
 
             # Process each frame for both gesture and position
-            vertical, sound = detectAndProcessGesture(image)
-            horizontal = getHorizontalPositionHand(image)
+            horizontal, vertical, sound = detectAndProcessGesture(image)
 
-            # Check if the values have changed and if there is a hand detected
-            # Only send horizontal command if vertical is not stop (0)
-            if vertical != 0 and (horizontal != previous_horizontal or vertical != previous_vertical) and horizontal is not None:
-                # Send the processed information to the robot control
-                await infoProtocol(session, horizontal, vertical)
-                previous_horizontal = horizontal
-                previous_vertical = vertical
+            # Determine the command to send based on the detected gesture
+            if vertical != 0:
+                command = ('vertical', vertical)
+            elif horizontal != 0:
+                command = ('horizontal', horizontal)
+            else:
+                command = ('stop', 0)
+
+            # Check if the command has changed
+            if command != previous_command:
+                if command[0] == 'vertical':
+                    await infoProtocol(session, 0, command[1])
+                elif command[0] == 'horizontal':
+                    await infoProtocol(session, command[1], 0)
+                elif command[0] == 'stop':
+                    await infoProtocol(session, 0, 0)
+                previous_command = command
 
             # Send sound command if sound gesture is detected
-            if sound and sound != previous_sound:
+            if sound:
                 await sendSoundCommand(session)
-                previous_sound = sound
 
             # Display the processed image
             cv2.imshow('Hand Recognition', image)

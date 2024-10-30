@@ -38,7 +38,7 @@ async def drive():
         print(f"Error in /drive endpoint: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/lights', methods=['POST'])
+@app.route('/sounds', methods=['POST'])
 async def change_lights():
     start_time = time.time()
     try:
