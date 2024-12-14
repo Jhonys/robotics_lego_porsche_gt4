@@ -1,0 +1,8 @@
+Flask[async]
+aiohttp
+asyncio
+bleak
+pygame
+mediapipe
+opencv-python
+pydBeacon
